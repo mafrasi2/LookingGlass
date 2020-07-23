@@ -22,4 +22,6 @@ target_link_libraries(lg_common_platform_code
 	lg_common
 	pthread
 	rt
+	X11
+	GL
 )
