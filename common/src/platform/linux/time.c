@@ -22,6 +22,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include <errno.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -31,17 +32,18 @@ struct LGTimer
   LGTimerFn   fn;
   void      * udata;
   timer_t     id;
-  bool        running;
+  atomic_bool running;
 };
 
 static void TimerProc(union sigval arg)
 {
   LGTimer * timer = (LGTimer *)arg.sival_ptr;
-  if (!timer->fn(timer->udata))
+
+  if (!timer->running || !timer->fn(timer->udata))
   {
     if (timer_delete(timer->id))
       DEBUG_ERROR("failed to destroy the timer: %s", strerror(errno));
-    timer->running = false;
+    free(timer);
   }
 }
 
@@ -99,11 +101,5 @@ bool lgCreateTimer(const unsigned int intervalMS, LGTimerFn fn,
 
 void lgTimerDestroy(LGTimer * timer)
 {
-  if (timer->running)
-  {
-    if (timer_delete(timer->id))
-      DEBUG_ERROR("failed to destroy the timer: %s", strerror(errno));
-  }
-
-  free(timer);
+  timer->running = false;
 }
